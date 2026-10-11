@@ -34,6 +34,10 @@
 #include "main.h"
 #include "ili9341.h"
 #include "gfx01m2_conf.h"
+#include "app_fsm.h"
+
+/* Set to 1 to run the instructor's LCD smoke test once at power-up */
+#define RUN_LCD_SMOKE_TEST  0
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
@@ -43,10 +47,11 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 
-static void Demo_ColorBars(void);
-static void Demo_Shapes(void);
-static void Demo_Text(void);
-static void Demo_Joystick(void);
+/* Smoke-test pages, kept for the graphics test (only used if RUN_LCD_SMOKE_TEST) */
+__attribute__((unused)) static void Demo_ColorBars(void);
+__attribute__((unused)) static void Demo_Shapes(void);
+__attribute__((unused)) static void Demo_Text(void);
+__attribute__((unused)) static void Demo_Joystick(void);
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
 #define JOY_LEFT_MASK   (1U << 0)
@@ -85,29 +90,25 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
 
-  /* Initialize the LCD and show a splash screen */
+  /* Initialize the LCD */
   ILI9341_Init(&hspi1);
+
+#if RUN_LCD_SMOKE_TEST
+  /* Instructor smoke test: one pass through every demo page, then the pet */
   ILI9341_DrawString(18, 12, "GFX01M2 LCD DEMO", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 2);
   ILI9341_DrawString(30, 40, "NUCLEO-L496ZG-P", ILI9341_COLOR_CYAN, ILI9341_COLOR_BLACK, 1);
   HAL_Delay(2000);
+  Demo_ColorBars();  HAL_Delay(1500);
+  Demo_Shapes();     HAL_Delay(1500);
+  Demo_Text();       HAL_Delay(1500);
+  Demo_Joystick();
+#endif
 
-  /* Infinite loop: cycle through the demo pages */
+  /* Virtual pet: the state machine runs forever without blocking */
+  App_Init(HAL_GetTick());
   while (1)
   {
-    Demo_ColorBars();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
-
-    Demo_Shapes();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
-
-    Demo_Text();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
-
-    Demo_Joystick();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    App_Update(HAL_GetTick());
   }
 }
 
