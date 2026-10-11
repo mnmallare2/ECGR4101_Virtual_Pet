@@ -1,0 +1,46 @@
+# ------------------------------------------------------------
+# STM32CubeIDE / CubeMX build output
+# ------------------------------------------------------------
+Debug/
+Release/
+build/
+out/
+cmake-build-*/
+
+# Compiler and assembler intermediate files
+*.o
+*.obj
+*.d
+*.su
+*.cyclo
+
+# Linker output, reports, and executable images
+*.elf
+*.axf
+*.map
+*.list
+*.lst
+*.hex
+*.bin
+
+# ------------------------------------------------------------
+# Computer-specific IDE and workspace data
+# ------------------------------------------------------------
+.metadata/
+.settings/language.settings.xml
+
+# Optional: ignore only if these VS Code settings contain
+# absolute paths or other settings specific to one computer.
+# .vscode/settings.json
+
+# ------------------------------------------------------------
+# Operating-system and editor temporary files
+# ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+*.bak
+*.tmp
