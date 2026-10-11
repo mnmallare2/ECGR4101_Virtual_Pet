@@ -22,12 +22,12 @@
 #define MENU_BACK_INDEX  3
 
 void UI_Init(void);
-void UI_DrawMainScreen(void);                          /* full redraw: title, labels, hint */
-void UI_DrawMeters(const Pet *p);                      /* hunger + happiness bars          */
-void UI_DrawIdleFrame(uint8_t frame);                  /* idle animation, one frame        */
-void UI_DrawActionFrame(PetAction a, uint8_t frame);   /* feed/play/pet animation frame    */
-void UI_DrawHint(void);                                /* bottom bar: "CENTER: MENU"       */
-void UI_DrawMenu(uint8_t selected);                    /* bottom bar: menu, highlighted    */
+void UI_DrawMainScreen(void);                                        /* full redraw: title, labels, hint */
+void UI_DrawMeters(uint8_t food, uint8_t happiness, uint8_t energy); /* Mike's version with 3 bars, 0-100*/ 
+void UI_DrawIdleFrame(uint8_t frame);                                /* idle animation, one frame        */
+void UI_DrawActionFrame(PetAction a, uint8_t frame);                 /* feed/play/pet animation frame    */
+void UI_DrawHint(void);                                              /* bottom bar: "CENTER: MENU"       */
+void UI_DrawMenu(uint8_t selected);                                  /* bottom bar: menu, highlighted    */
 void UI_DrawDeadScreen(void);
 void UI_DrawRanAwayScreen(void);
 

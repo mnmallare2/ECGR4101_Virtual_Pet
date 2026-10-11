@@ -45,7 +45,8 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    App/Src/app_fsm.c
+    App/Src/app.c               # glue: connects Mike's FSM to input/UI
+    App/Src/game_fsm.c          # using Mike's logic file change: app_fsm.c -> game_fsm.c
     App/Src/debug_uart.c
     App/Src/input.c
     App/Src/pet.c

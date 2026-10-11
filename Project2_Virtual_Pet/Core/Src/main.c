@@ -34,7 +34,7 @@
 #include "main.h"
 #include "ili9341.h"
 #include "gfx01m2_conf.h"
-#include "app_fsm.h"
+#include "app.h"               // app.h and app.c were made to integrate Mike's logic file change: app_fsm.h(Eric) -> game_fsm.h(mike)
 
 /* Set to 1 to run the instructor's LCD smoke test once at power-up */
 #define RUN_LCD_SMOKE_TEST  0
@@ -105,7 +105,7 @@ int main(void)
 #endif
 
   /* Virtual pet: the state machine runs forever without blocking */
-  App_Init(HAL_GetTick());
+  App_Init(HAL_GetTick());     //previously was:   Game_Init(HAL_GetTick()); 
   while (1)
   {
     App_Update(HAL_GetTick());

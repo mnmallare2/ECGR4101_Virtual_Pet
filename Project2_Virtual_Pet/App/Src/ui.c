@@ -21,6 +21,7 @@
 #define METER_H     10U
 #define HUNGER_Y    30U
 #define HAPPY_Y     48U
+#define ENERGY_Y    66U
 
 /* Pet stage (the only area redrawn by animations) */
 #define STAGE_X     50U
@@ -72,14 +73,16 @@ void UI_DrawMainScreen(void)
 {
   ILI9341_FillScreen(BG);
   ILI9341_DrawString(48, 6, "VIRTUAL PET", TEXT, BG, 2);
-  ILI9341_DrawString(10, HUNGER_Y + 2, "HUNGER", TEXT, BG, 1);
-  ILI9341_DrawString(10, HAPPY_Y + 2,  "HAPPY",  TEXT, BG, 1);
+  ILI9341_DrawString(10, HUNGER_Y + 2, "FOOD",   TEXT, BG, 1);  // ILI9341_DrawString(10, HUNGER_Y + 2, "HUNGER", TEXT, BG, 1);
+  ILI9341_DrawString(10, HAPPY_Y + 2,  "HAPPY",  TEXT, BG, 1);  // ILI9341_DrawString(10, HAPPY_Y + 2,  "HAPPY",  TEXT, BG, 1);
+  ILI9341_DrawString(10, ENERGY_Y + 2, "ENERGY", TEXT, BG, 1);  
 }
 
-void UI_DrawMeters(const Pet *p)
+void UI_DrawMeters(uint8_t food, uint8_t happiness, uint8_t energy)
 {
-  draw_meter(HUNGER_Y, p->hunger,    ILI9341_COLOR_ORANGE);
-  draw_meter(HAPPY_Y,  p->happiness, ILI9341_COLOR_CYAN);
+  draw_meter(HUNGER_Y, food,      ILI9341_COLOR_ORANGE);
+  draw_meter(HAPPY_Y,  happiness, ILI9341_COLOR_CYAN);
+  draw_meter(ENERGY_Y, energy,    ILI9341_COLOR_YELLOW);
 }
 
 void UI_DrawIdleFrame(uint8_t frame)
@@ -96,26 +99,26 @@ void UI_DrawActionFrame(PetAction a, uint8_t frame)
 
   switch (a)
   {
-    case ACTION_FEED:   /* food block slides toward the pet's mouth */
+    case PET_ACTION_FEED:   /* Cheikh and Grecia's part comes here */
       draw_pet(70, STAGE_Y + 40);
       ILI9341_FillRect((uint16_t)(180 - (frame % 4U) * 12U), STAGE_Y + 60, 12, 12, ILI9341_COLOR_ORANGE);
       ILI9341_DrawString(STAGE_X, STAGE_Y, "YUM", TEXT, BG, 2);
       break;
 
-    case ACTION_PLAY:   /* pet jumps while a ball bounces next to it */
+    case PET_ACTION_PLAY:   /* This is a temporary placeholder with comments */
       draw_pet(70, (uint16_t)(STAGE_Y + 40 - ((frame & 1U) ? 20U : 0U)));
       ILI9341_FillRect(160, (uint16_t)(STAGE_Y + 20 + ((frame & 1U) ? 50U : 0U)), 14, 14, ILI9341_COLOR_MAGENTA);
       ILI9341_DrawString(STAGE_X, STAGE_Y, "PLAY", TEXT, BG, 2);
       break;
 
-    case ACTION_PET:    /* hearts appear and disappear above the head */
+    case PET_ACTION_SLEEP:    /* and also temporary instructions that could work */
       draw_pet(90, STAGE_Y + 40);
       if (frame & 1U)
       {
         ILI9341_FillRect(100, STAGE_Y + 22, 10, 10, ILI9341_COLOR_RED);
         ILI9341_FillRect(130, STAGE_Y + 22, 10, 10, ILI9341_COLOR_RED);
       }
-      ILI9341_DrawString(STAGE_X, STAGE_Y, "PURR", TEXT, BG, 2);
+      ILI9341_DrawString(STAGE_X, STAGE_Y, "ZZZ", TEXT, BG, 2);
       break;
 
     default:
