@@ -8,9 +8,15 @@
  *     a new value after it has stayed the same for DEBOUNCE_MS.
  *  3. Edge detection: an event is produced only for bits that just went
  *     from released to pressed, so holding the stick does not repeat.
+ * Keys typed in a serial monitor (W/A/S/D/E) produce the same events, so
+ * the pet can be tested without the display board.
+ *
+ * Note: with the display board unplugged, the joystick pins are held high
+ * by the internal pull-ups, read as "released", and produce no events.
  */
 #include "input.h"
 #include "gfx01m2_conf.h"   /* joystick port/pin names from the starter */
+#include "debug_uart.h"     /* keyboard keys from the PC                */
 
 #define DEBOUNCE_MS  20U
 
@@ -44,8 +50,34 @@ void Input_Init(void)
   last_change_ms = 0;
 }
 
+/* Debug keyboard over the serial link: W/A/S/D move, E selects.
+ * Other characters (like the Enter a serial monitor sends) are ignored. */
+static InputEvent key_to_event(int key)
+{
+  switch (key)
+  {
+    case 'w': case 'W': return EVT_UP;
+    case 's': case 'S': return EVT_DOWN;
+    case 'a': case 'A': return EVT_LEFT;
+    case 'd': case 'D': return EVT_RIGHT;
+    case 'e': case 'E': return EVT_SELECT;
+    default:            return EVT_NONE;
+  }
+}
+
 InputEvent Input_Poll(uint32_t now_ms)
 {
+  /* A typed key acts exactly like the joystick (for testing without the LCD board) */
+  int key;
+  while ((key = Debug_GetKey()) != -1)
+  {
+    InputEvent kev = key_to_event(key);
+    if (kev != EVT_NONE)
+    {
+      return kev;
+    }
+  }
+
   uint8_t raw = read_raw();
 
   if (raw != last_raw)              /* pins changed: restart the timer */

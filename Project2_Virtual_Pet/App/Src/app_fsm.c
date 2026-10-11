@@ -22,6 +22,13 @@
 #include "input.h"
 #include "pet.h"
 #include "ui.h"
+#include "debug_uart.h"
+#include "main.h"            /* LD2 (blue) and LD3 (red) LED pin names */
+
+/* Names used only for the serial debug log */
+static const char *state_names[]  = { "MAIN", "MENU", "ACTION", "DEAD", "RAN_AWAY" };
+static const char *action_names[] = { "FEED", "PLAY", "PET" };
+static const char *menu_names[]   = { "FEED", "PLAY", "PET", "BACK" };
 
 #define IDLE_FRAME_MS     400U   /* idle animation speed            */
 #define ACTION_FRAME_MS   250U   /* action animation speed          */
@@ -44,6 +51,13 @@ static void redraw_meters(void)
   UI_DrawMeters(&pet);
   shown_hunger = pet.hunger;
   shown_happy  = pet.happiness;
+  Debug_Printf("  stats: hunger=%d happiness=%d\r\n", pet.hunger, pet.happiness);
+}
+
+static void show_menu(void)
+{
+  UI_DrawMenu(menu_sel);
+  Debug_Printf("  menu: > %s\r\n", menu_names[menu_sel]);
 }
 
 /* Single place where the state changes. It also draws what the new
@@ -55,6 +69,15 @@ static void enter_state(AppState next, uint32_t now_ms)
   last_frame_ms  = now_ms;
   frame          = 0;
 
+  Debug_Printf("[%lu.%lus] STATE -> %s%s%s\r\n",
+               now_ms / 1000U, (now_ms % 1000U) / 100U, state_names[next],
+               (next == APP_ACTION) ? " " : "",
+               (next == APP_ACTION) ? action_names[current_action] : "");
+
+  /* Red LED on only when the pet is gone */
+  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin,
+                    (next == APP_DEAD || next == APP_RAN_AWAY) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
   switch (next)
   {
     case APP_MAIN:
@@ -64,7 +87,7 @@ static void enter_state(AppState next, uint32_t now_ms)
 
     case APP_MENU:
       menu_sel = 0;
-      UI_DrawMenu(menu_sel);
+      show_menu();
       break;
 
     case APP_ACTION:
@@ -104,6 +127,9 @@ static uint8_t pet_is_alive(void)
 
 void App_Init(uint32_t now_ms)
 {
+  Debug_Init();
+  Debug_Printf("\r\n=== VIRTUAL PET ===\r\n");
+  Debug_Printf("Keys: W/S/A/D = joystick, E = press (select)\r\n");
   Input_Init();
   UI_Init();
   start_new_pet(now_ms);
@@ -148,12 +174,12 @@ void App_Update(uint32_t now_ms)
       if (ev == EVT_RIGHT || ev == EVT_DOWN)
       {
         menu_sel = (uint8_t)((menu_sel + 1U) % MENU_ITEM_COUNT);
-        UI_DrawMenu(menu_sel);
+        show_menu();
       }
       else if (ev == EVT_LEFT || ev == EVT_UP)
       {
         menu_sel = (uint8_t)((menu_sel + MENU_ITEM_COUNT - 1U) % MENU_ITEM_COUNT);
-        UI_DrawMenu(menu_sel);
+        show_menu();
       }
       else if (ev == EVT_SELECT)
       {
@@ -199,6 +225,7 @@ void App_Update(uint32_t now_ms)
       last_frame_ms = now_ms;
       frame++;
       UI_DrawIdleFrame(frame);
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);   /* blue LED = heartbeat */
     }
   }
   else if (state == APP_ACTION)
