@@ -190,6 +190,7 @@ static void check_timers(void)
         (uint32_t)(s_now_ms - s_state_enter_ms) >= FSM_PROMPT_TIMEOUT_MS) {
         enter_state(FSM_IDLE);
     } else if (s_state == FSM_SLEEPING &&
+               (uint32_t)(s_now_ms - s_state_enter_ms) >= FSM_MIN_SLEEP_MS &&
                pet_get_stat(PET_STAT_ENERGY) >= PET_STAT_MAX) {
         hook_sound(SOUND_HAPPY);
         enter_state(FSM_IDLE);
@@ -251,7 +252,14 @@ static void handle_prompt(FsmEvent evt)
         enter_state(FSM_IDLE);
     } else if (evt == k_action_trigger[s_pending_action]) {
         if (s_pending_action == PET_ACTION_SLEEP) {
-            enter_state(FSM_SLEEPING);
+            /* --- NEW: only sleep when tired (this replaces enter_state(FSM_SLEEPING);) --- */
+            if (pet_get_stat(PET_STAT_ENERGY) >= FSM_SLEEP_MIN_TIRED) {
+                hook_sound(SOUND_SAD);      /* not tired: refuse */
+                enter_state(FSM_IDLE);
+            } else {
+                enter_state(FSM_SLEEPING);
+            }
+            /* --- end NEW --- */
         } else {
             enter_state(FSM_ACTION_ANIM);
         }
