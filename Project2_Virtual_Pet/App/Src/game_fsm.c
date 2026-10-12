@@ -129,10 +129,12 @@ static void enter_state(FsmState next)
         hook_anim(ANIM_SLEEP, true);
         break;
     case FSM_DEAD:
+        pet_set_paused(true);       /* NEW: a dead pet stops changing */
         hook_anim(ANIM_DEAD, true);
         hook_sound(SOUND_DEAD);
         break;
     case FSM_RAN_AWAY:
+        pet_set_paused(true);       /* NEW: same for a pet that ran away */
         hook_anim(ANIM_RAN_AWAY, true);
         hook_sound(SOUND_SAD);
         break;

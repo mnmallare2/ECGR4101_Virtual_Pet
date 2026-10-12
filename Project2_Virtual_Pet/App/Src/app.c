@@ -9,6 +9,18 @@
 #include "debug_uart.h"
 #include <stddef.h>      /* NULL */
 #include "input.h"
+#include "pet.h"
+#include "main.h"        /* LD2 (blue) / LD3 (red) LED pins */
+#include <stdbool.h>
+
+#define ACTION_ANIM_MS  2500u  /* how long feed/play "plays" before it counts as done */
+#define HEARTBEAT_MS    500u   /* blue LED blink speed while the pet is alive        */
+
+static uint32_t now_ms_cache;    /* time of the current App_Update (hooks get no time) */
+static bool     anim_running;    /* a one-shot action animation is in progress */
+static uint32_t anim_start_ms;
+static uint32_t heartbeat_ms;
+static uint8_t  shown_food = 0xFF, shown_happy = 0xFF, shown_energy = 0xFF;
 
 /* ---- new hooks: Mike's FSM calls these when something happens ---- */
 
@@ -17,10 +29,22 @@ static void on_state_enter(FsmState state)
   Debug_Printf("STATE -> %s\r\n", fsm_state_name(state));
 }
 
+/* Mike's FSM asks for an animation. Drawing it is the UI team's job later;
+ * here we only time one-shot (non-looping) ones so EVT_ANIM_DONE gets sent. */
+static void start_animation(AnimId anim, bool loop)
+{
+  (void)anim;
+  if (!loop)
+  {
+    anim_running  = true;
+    anim_start_ms = now_ms_cache;
+  }
+}
+
 /* Unfinished hooks are NULL for now - Mike's code checks for NULL */
 static const FsmHooks hooks = {
   .on_state_enter  = on_state_enter,
-  .start_animation = NULL,
+  .start_animation = start_animation,
   .play_sound      = NULL,
   .on_menu_changed = NULL,
 };
@@ -34,15 +58,62 @@ void App_Init(uint32_t now_ms)
   UI_Init();
   Input_Init();
   UI_DrawMainScreen();
+  now_ms_cache = now_ms;
   fsm_init(&hooks, now_ms);   /* Mike's FSM: resets the pet, then it enters IDLE */
+}
+
+/* Print stats over serial whenever one changes */
+static void stats_update(void)
+{
+  uint8_t food   = pet_get_stat(PET_STAT_HUNGER);
+  uint8_t happy  = pet_get_stat(PET_STAT_HAPPINESS);
+  uint8_t energy = pet_get_stat(PET_STAT_ENERGY);
+
+  if (food != shown_food || happy != shown_happy || energy != shown_energy)
+  {
+    shown_food = food;  shown_happy = happy;  shown_energy = energy;
+    Debug_Printf("  stats: food=%u happy=%u energy=%u\r\n", food, happy, energy);
+  }
+}
+
+/* Blue LED blinks while alive, red LED on when dead or ran away */
+static void leds_update(uint32_t now_ms)
+{
+  FsmState s = fsm_get_state();
+  if (s == FSM_DEAD || s == FSM_RAN_AWAY)
+  {
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+  }
+  else
+  {
+    HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+    if ((now_ms - heartbeat_ms) >= HEARTBEAT_MS)
+    {
+      heartbeat_ms = now_ms;
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    }
+  }
 }
 
 void App_Update(uint32_t now_ms)
 {
+  now_ms_cache = now_ms;
+
   FsmEvent ev = Input_Poll(now_ms);   /* joystick or keyboard */
   if (ev != EVT_NONE)
   {
     fsm_post_event(ev);               /* into Mike's event queue */
   }
+
+  /* Action "animation" finished -> tell Mike's FSM so it leaves ACTION_ANIM */
+  if (anim_running && (now_ms - anim_start_ms) >= ACTION_ANIM_MS)
+  {
+    anim_running = false;
+    fsm_post_event(EVT_ANIM_DONE);
+  }
+
   fsm_update(now_ms);                 /* Mike's FSM handles it */
+  stats_update();
+  leds_update(now_ms);
 }
