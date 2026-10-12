@@ -8,6 +8,7 @@
 #include "ui.h"
 #include "debug_uart.h"
 #include <stddef.h>      /* NULL */
+#include "input.h"
 
 /* ---- new hooks: Mike's FSM calls these when something happens ---- */
 
@@ -31,11 +32,17 @@ void App_Init(uint32_t now_ms)
   Debug_Init();
   Debug_Printf("\r\n=== VIRTUAL PET ===\r\n");
   UI_Init();
+  Input_Init();
   UI_DrawMainScreen();
   fsm_init(&hooks, now_ms);   /* Mike's FSM: resets the pet, then it enters IDLE */
 }
 
 void App_Update(uint32_t now_ms)
 {
-  fsm_update(now_ms);         /* Mike's FSM: decay, death checks, events */
+  FsmEvent ev = Input_Poll(now_ms);   /* joystick or keyboard */
+  if (ev != EVT_NONE)
+  {
+    fsm_post_event(ev);               /* into Mike's event queue */
+  }
+  fsm_update(now_ms);                 /* Mike's FSM handles it */
 }
