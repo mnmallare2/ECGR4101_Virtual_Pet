@@ -156,6 +156,48 @@ void ILI9341_FillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t c
     LCD_CS_High();
 }
 
+
+
+
+void ILI9341_DrawBitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *data)
+{
+    static uint8_t line_buf[ILI9341_WIDTH * 2];  /* one row of pixels, 2 bytes each */
+    uint16_t stride = w;                         /* original row length of the image */
+    uint16_t row, i;
+
+    
+    if ((data == NULL) || (x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT))
+    {
+        return;
+    }
+    
+    if ((uint32_t)(x + w) > ILI9341_WIDTH)  { w = ILI9341_WIDTH - x; }
+    if ((uint32_t)(y + h) > ILI9341_HEIGHT) { h = ILI9341_HEIGHT - y; }
+
+    /* tell the LCD which rectangle we are about to fill */
+    LCD_SetAddressWindow(x, y, x + w - 1, y + h - 1);
+
+    HAL_GPIO_WritePin(LCD_DC_GPIO_Port, LCD_DC_Pin, GPIO_PIN_SET);  
+    LCD_CS_Low();
+    for (row = 0; row < h; row++)
+    {
+        const uint16_t *src = &data[(uint32_t)row * stride];
+        for (i = 0; i < w; i++)
+        {
+#ifdef ILI9341_BITMAP_SWAPPED
+            line_buf[2 * i]     = (uint8_t)(src[i] & 0xFF);
+            line_buf[2 * i + 1] = (uint8_t)(src[i] >> 8);
+#else
+            line_buf[2 * i]     = (uint8_t)(src[i] >> 8);    /* give LCD high byte first */
+            line_buf[2 * i + 1] = (uint8_t)(src[i] & 0xFF);
+#endif
+        }
+        HAL_SPI_Transmit(ili9341_hspi, line_buf, (uint16_t)(w * 2), HAL_MAX_DELAY);
+    }
+    LCD_CS_High();
+}
+
+
 void ILI9341_FillScreen(uint16_t color)
 {
     ILI9341_FillRect(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT, color);
