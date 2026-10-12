@@ -46,5 +46,8 @@ void ILI9341_DrawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t c
 /* size = 1 draws the native 5x7 glyph, size = 2 draws it at double scale, etc. */
 void ILI9341_DrawChar(uint16_t x, uint16_t y, char c, uint16_t color, uint16_t bg, uint8_t size);
 void ILI9341_DrawString(uint16_t x, uint16_t y, const char *str, uint16_t color, uint16_t bg, uint8_t size);
+/* Draws a w x h RGB565 image (row by row, top-left first) at (x, y). */
+void ILI9341_DrawBitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *data);
+
 
 #endif /* ILI9341_H */
