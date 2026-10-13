@@ -27,7 +27,9 @@ void UI_DrawMeters(uint8_t food, uint8_t happiness, uint8_t energy); /* Mike's v
 void UI_DrawIdleFrame(uint8_t frame);                                /* idle animation, one frame        */
 void UI_DrawActionFrame(PetAction a, uint8_t frame);                 /* feed/play/pet animation frame    */
 void UI_DrawHint(void);                                              /* bottom bar: "CENTER: MENU"       */
-void UI_DrawMenu(uint8_t selected);                                  /* bottom bar: menu, highlighted    */
+void UI_DrawMenu(uint8_t selected);                                 /* bottom bar: menu, highlighted    */
+void UI_DrawStatus(const char *line1, const char *line2);            /* bottom bar: 1-2 lines of text    */
+void UI_DrawPrompt(PetAction a);                                     /* bottom bar: "do the action now"  */
 void UI_DrawDeadScreen(void);
 void UI_DrawRanAwayScreen(void);
 

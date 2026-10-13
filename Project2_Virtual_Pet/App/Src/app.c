@@ -21,12 +21,58 @@ static bool     anim_running;    /* a one-shot action animation is in progress *
 static uint32_t anim_start_ms;
 static uint32_t heartbeat_ms;
 static uint8_t  shown_food = 0xFF, shown_happy = 0xFF, shown_energy = 0xFF;
+static FsmState prev_state = FSM_IDLE;  /* to know if IDLE needs a full redraw */
 
 /* ---- new hooks: Mike's FSM calls these when something happens ---- */
 
 static void on_state_enter(FsmState state)
 {
   Debug_Printf("STATE -> %s\r\n", fsm_state_name(state));
+
+  switch (state)
+  {
+    case FSM_IDLE:
+      /* coming back from an end screen (restart): the whole screen must be rebuilt */
+      if (prev_state == FSM_DEAD || prev_state == FSM_RAN_AWAY)
+      {
+        UI_DrawMainScreen();
+      }
+      UI_DrawHint();
+      break;
+
+    case FSM_MENU:
+      UI_DrawMenu(fsm_get_menu_cursor());
+      break;
+
+    case FSM_ACTION_PROMPT:
+      UI_DrawPrompt(fsm_get_pending_action());
+      break;
+
+    case FSM_ACTION_ANIM:
+      UI_DrawStatus("...", NULL);
+      break;
+
+    case FSM_SLEEPING:
+      UI_DrawStatus("ZZZ  SLEEPING", "BACK: WAKE UP");
+      break;
+
+    case FSM_DEAD:
+      UI_DrawDeadScreen();
+      break;
+
+    case FSM_RAN_AWAY:
+      UI_DrawRanAwayScreen();
+      break;
+
+    default:
+      break;
+  }
+  prev_state = state;
+}
+
+static void on_menu_changed(uint8_t cursor)
+{
+  UI_DrawMenu(cursor);
 }
 
 /* Mike's FSM asks for an animation. Drawing it is the UI team's job later;
@@ -46,7 +92,7 @@ static const FsmHooks hooks = {
   .on_state_enter  = on_state_enter,
   .start_animation = start_animation,
   .play_sound      = NULL,
-  .on_menu_changed = NULL,
+  .on_menu_changed = on_menu_changed,
 };
 
 /* ---- Public ---- */
@@ -62,17 +108,24 @@ void App_Init(uint32_t now_ms)
   fsm_init(&hooks, now_ms);   /* Mike's FSM: resets the pet, then it enters IDLE */
 }
 
-/* Print stats over serial whenever one changes */
+/* Print stats over serial whenever one changes, and keep the on-screen meters current */
 static void stats_update(void)
 {
   uint8_t food   = pet_get_stat(PET_STAT_HUNGER);
   uint8_t happy  = pet_get_stat(PET_STAT_HAPPINESS);
   uint8_t energy = pet_get_stat(PET_STAT_ENERGY);
+  FsmState s     = fsm_get_state();
 
   if (food != shown_food || happy != shown_happy || energy != shown_energy)
   {
     shown_food = food;  shown_happy = happy;  shown_energy = energy;
     Debug_Printf("  stats: food=%u happy=%u energy=%u\r\n", food, happy, energy);
+  }
+
+  /* Meters only exist on the main screen, not on the death / run-away screens */
+  if (s != FSM_DEAD && s != FSM_RAN_AWAY)
+  {
+    UI_DrawMeters(food, happy, energy);
   }
 }
 
