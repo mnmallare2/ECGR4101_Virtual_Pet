@@ -62,17 +62,24 @@ void App_Init(uint32_t now_ms)
   fsm_init(&hooks, now_ms);   /* Mike's FSM: resets the pet, then it enters IDLE */
 }
 
-/* Print stats over serial whenever one changes */
+/* Print stats over serial whenever one changes, and keep the on-screen meters current */
 static void stats_update(void)
 {
   uint8_t food   = pet_get_stat(PET_STAT_HUNGER);
   uint8_t happy  = pet_get_stat(PET_STAT_HAPPINESS);
   uint8_t energy = pet_get_stat(PET_STAT_ENERGY);
+  FsmState s     = fsm_get_state();
 
   if (food != shown_food || happy != shown_happy || energy != shown_energy)
   {
     shown_food = food;  shown_happy = happy;  shown_energy = energy;
     Debug_Printf("  stats: food=%u happy=%u energy=%u\r\n", food, happy, energy);
+  }
+
+  /* Meters only exist on the main screen, not on the death / run-away screens */
+  if (s != FSM_DEAD && s != FSM_RAN_AWAY)
+  {
+    UI_DrawMeters(food, happy, energy);
   }
 }
 
