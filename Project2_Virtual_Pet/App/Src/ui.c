@@ -8,6 +8,7 @@
  */
 #include "ui.h"
 #include "ili9341.h"
+#include <string.h>  
 
 /* Colors */
 #define BG          ILI9341_COLOR_BLACK
@@ -36,7 +37,7 @@
 #define BAR_Y       260U
 #define BAR_H       40U
 
-static const char *menu_names[MENU_ITEM_COUNT] = { "FEED", "PLAY", "PET", "BACK" };
+static const char *menu_names[MENU_ITEM_COUNT] = { "FEED", "PLAY", "SLEEP", "BACK" };
 
 /* ---------- small helpers ---------- */
 
@@ -190,16 +191,49 @@ void UI_DrawHint(void)
   ILI9341_DrawString(30, BAR_Y + 14, "CENTER: OPEN MENU", TEXT, BG, 1);
 }
 
+#define MENU_CHAR_W  12U   /* 5x7 font at size 2: (5 + 1) * 2 px per char */
+#define MENU_GAP     8U
+
 void UI_DrawMenu(uint8_t selected)
 {
-  uint8_t i;
+  uint8_t  i;
+  uint16_t total = 0, x;
+
+  /* total width of all labels + gaps, so the row can be centered */
+  for (i = 0; i < MENU_ITEM_COUNT; i++)
+  {
+    total = (uint16_t)(total + strlen(menu_names[i]) * MENU_CHAR_W);
+  }
+  total = (uint16_t)(total + (MENU_ITEM_COUNT - 1U) * MENU_GAP);
+  x = (total < ILI9341_WIDTH) ? (uint16_t)((ILI9341_WIDTH - total) / 2U) : 0U;
+
   clear_bar();
   for (i = 0; i < MENU_ITEM_COUNT; i++)
   {
     /* selected item is drawn inverted (black on white) */
     uint16_t fg = (i == selected) ? BG   : TEXT;
     uint16_t bg = (i == selected) ? TEXT : BG;
-    ILI9341_DrawString((uint16_t)(6 + i * 60), BAR_Y + 12, menu_names[i], fg, bg, 2);
+    ILI9341_DrawString(x, BAR_Y + 12, menu_names[i], fg, bg, 2);
+    x = (uint16_t)(x + strlen(menu_names[i]) * MENU_CHAR_W + MENU_GAP);
+  }
+}
+
+void UI_DrawStatus(const char *line1, const char *line2)
+{
+  clear_bar();
+  if (line1 != NULL) { ILI9341_DrawString(10, BAR_Y + 8,  line1, TEXT, BG, 1); }
+  if (line2 != NULL) { ILI9341_DrawString(10, BAR_Y + 24, line2, ILI9341_COLOR_GRAY, BG, 1); }
+}
+
+/* TODO: change the wording once the team decides which sensor triggers each action */
+void UI_DrawPrompt(PetAction a)
+{
+  switch (a)
+  {
+    case PET_ACTION_FEED:  UI_DrawStatus("FEED: USE THE SENSOR NOW",  "BACK: CANCEL"); break;
+    case PET_ACTION_PLAY:  UI_DrawStatus("PLAY: USE THE SENSOR NOW",  "BACK: CANCEL"); break;
+    case PET_ACTION_SLEEP: UI_DrawStatus("SLEEP: USE THE SENSOR NOW", "BACK: CANCEL"); break;
+    default:               UI_DrawStatus("DO THE ACTION NOW",         "BACK: CANCEL"); break;
   }
 }
 
@@ -208,7 +242,7 @@ void UI_DrawDeadScreen(void)
   ILI9341_FillScreen(BG);
   ILI9341_DrawString(20, 120, "YOUR PET DIED", ILI9341_COLOR_RED, BG, 2);
   ILI9341_DrawString(20, 160, "IT WAS TOO HUNGRY", TEXT, BG, 1);
-  ILI9341_DrawString(20, 200, "CENTER: RESTART", TEXT, BG, 1);
+  ILI9341_DrawString(20, 200, "HOLD CENTER: RESTART", TEXT, BG, 1);
 }
 
 void UI_DrawRanAwayScreen(void)
@@ -216,5 +250,5 @@ void UI_DrawRanAwayScreen(void)
   ILI9341_FillScreen(BG);
   ILI9341_DrawString(20, 120, "PET RAN AWAY", ILI9341_COLOR_YELLOW, BG, 2);
   ILI9341_DrawString(20, 160, "IT WAS TOO UNHAPPY", TEXT, BG, 1);
-  ILI9341_DrawString(20, 200, "CENTER: RESTART", TEXT, BG, 1);
+  ILI9341_DrawString(20, 200, "HOLD CENTER: RESTART", TEXT, BG, 1);
 }
