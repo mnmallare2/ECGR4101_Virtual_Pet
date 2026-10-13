@@ -23,6 +23,22 @@ static uint32_t heartbeat_ms;
 static uint8_t  shown_food = 0xFF, shown_happy = 0xFF, shown_energy = 0xFF;
 static FsmState prev_state = FSM_IDLE;  /* to know if IDLE needs a full redraw */
 
+/* Sprite animation playback (frames are drawn by ui.c) */
+static AnimId   cur_anim = ANIM_IDLE;
+static uint8_t  anim_frame;
+static uint32_t anim_frame_ms;
+static bool     anim_draw_now;           /* draw frame 0 right away on a new animation */
+
+/* How long each frame stays on screen, per animation (ms) */
+static const uint16_t k_frame_ms[ANIM_COUNT] = {
+  [ANIM_IDLE]     = 300u,
+  [ANIM_FEED]     = 350u,
+  [ANIM_PLAY]     = 220u,
+  [ANIM_SLEEP]    = 500u,
+  [ANIM_DEAD]     = 450u,
+  [ANIM_RAN_AWAY] = 400u,
+};
+
 /* ---- new hooks: Mike's FSM calls these when something happens ---- */
 
 static void on_state_enter(FsmState state)
@@ -75,11 +91,13 @@ static void on_menu_changed(uint8_t cursor)
   UI_DrawMenu(cursor);
 }
 
-/* Mike's FSM asks for an animation. Drawing it is the UI team's job later;
- * here we only time one-shot (non-looping) ones so EVT_ANIM_DONE gets sent. */
+/* Mike's FSM asks for an animation. Remember which one so anim_tick() can
+ * draw its frames, and time one-shot (non-looping) ones so EVT_ANIM_DONE gets sent. */
 static void start_animation(AnimId anim, bool loop)
 {
-  (void)anim;
+  cur_anim      = anim;
+  anim_frame    = 0u;
+  anim_draw_now = true;
   if (!loop)
   {
     anim_running  = true;
@@ -149,6 +167,30 @@ static void leds_update(uint32_t now_ms)
   }
 }
 
+/* Draws the next frame of the current animation when its frame time is up.
+ * Only one 64x64 frame is sent per call, so input stays responsive. */
+static void anim_tick(uint32_t now_ms)
+{
+  FsmState s = fsm_get_state();
+
+  /* the end screens are full-screen text drawn by UI_DrawDeadScreen / UI_DrawRanAwayScreen */
+  if (s == FSM_DEAD || s == FSM_RAN_AWAY) { return; }
+
+  if (!anim_draw_now && (now_ms - anim_frame_ms) < k_frame_ms[cur_anim]) { return; }
+  anim_draw_now = false;
+  anim_frame_ms = now_ms;
+
+  switch (cur_anim)
+  {
+    case ANIM_IDLE:  UI_DrawIdleFrame(anim_frame);                     break;
+    case ANIM_FEED:  UI_DrawActionFrame(PET_ACTION_FEED,  anim_frame); break;
+    case ANIM_PLAY:  UI_DrawActionFrame(PET_ACTION_PLAY,  anim_frame); break;
+    case ANIM_SLEEP: UI_DrawActionFrame(PET_ACTION_SLEEP, anim_frame); break;
+    default:                                                           break;
+  }
+  anim_frame++;
+}
+
 void App_Update(uint32_t now_ms)
 {
   now_ms_cache = now_ms;
@@ -167,6 +209,7 @@ void App_Update(uint32_t now_ms)
   }
 
   fsm_update(now_ms);                 /* Mike's FSM handles it */
+  anim_tick(now_ms);                  /* next sprite frame, if it's time */
   stats_update();
   leds_update(now_ms);
 }
