@@ -122,6 +122,8 @@
       ]
     },
     {
+<<<<<<< HEAD
+=======
       "name": "programmer",
       "version": "2.23.0",
       "platform": "aarch64-darwin",
@@ -166,6 +168,7 @@
       ]
     },
     {
+>>>>>>> b876b54cfdd67d6c32c01341033d6aca7925e265
       "name": "st-arm-clangd",
       "version": "21.1.0+st.2",
       "platform": "darwin",
@@ -197,6 +200,8 @@
           "version": "21.1.0+st.2"
         }
       ]
+<<<<<<< HEAD
+=======
     },
     {
       "name": "stlink-gdbserver",
@@ -241,6 +246,7 @@
           "version": "7.14.0+st.2"
         }
       ]
+>>>>>>> b876b54cfdd67d6c32c01341033d6aca7925e265
     }
   ]
 }

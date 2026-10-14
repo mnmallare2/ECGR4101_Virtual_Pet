@@ -36,7 +36,10 @@
 /* How long ACTION_PROMPT waits for the sensor before giving up (ms).        */
 #define FSM_PROMPT_TIMEOUT_MS   10000u
 #define FSM_MIN_SLEEP_MS        5000u
-#define FSM_SLEEP_MIN_TIRED 90u
+#define FSM_SLEEP_MIN_TIRED     90u
+
+// Forced sleep, the pet refuses to be woken early until energy has recovered
+#define FSM_FORCED_WAKE_MIN_ENERGY 20u
  
 /* Size of the event queue (must be a power of two).                         */
 #define FSM_EVENT_QUEUE_SIZE    16u
@@ -151,6 +154,7 @@ uint8_t fsm_get_menu_cursor(void);
  */
 PetAction fsm_get_pending_action(void);
  
+bool fsm_sleep_can_wake(void);
 /**
  * fsm_state_name
  * Returns a short text name for a state, for debug printing over UART.

@@ -134,6 +134,13 @@ bool pet_is_sleeping(void);
 uint8_t pet_apply_action(PetAction action);
 
 /**
+ * pet_set_feed_amount
+ * Sets how much food (0..100) the next feed adds. Used by the food-portion
+ * knob; without a call, feeding adds the default 30.
+ */
+void pet_set_feed_amount(uint8_t amount);
+
+/**
  * pet_get_stat
  * Returns the current value (0..100) of one stat.
  */
@@ -171,4 +178,4 @@ bool pet_is_starved(void);
  */
 bool pet_has_run_away(void);
 
-#endif /* PET_H */
+#endif /* PET_H */

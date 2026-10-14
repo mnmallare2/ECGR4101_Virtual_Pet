@@ -12,13 +12,20 @@
 #include "pet.h"
 #include "main.h"        /* LD2 (blue) / LD3 (red) LED pins */
 #include "sprites.h"     /* CAT_<NAME>_FRAMES counts */
+#include "sound.h"       /* speaker: Sound_Play(CLIP_...) */
+#include "status_led.h"  /* LED patterns for each state */
+#include "knob.h"        /* food-portion potentiometer (ADC) */
 #include <stdbool.h>
+#include <stdio.h>       /* snprintf for the portion line */
 
-#define HEARTBEAT_MS    500u   /* blue LED blink speed while the pet is alive        */
-
-static uint32_t heartbeat_ms;
 static uint8_t  shown_food = 0xFF, shown_happy = 0xFF, shown_energy = 0xFF;
 static FsmState prev_state = FSM_IDLE;  /* to know if IDLE needs a full redraw */
+
+/* Feed prompt: what is currently shown, so it only redraws on a change */
+static Portion  shown_portion = PORTION_COUNT;   /* PORTION_COUNT = "nothing shown" */
+static uint16_t shown_raw;
+static uint32_t portion_draw_ms;
+static int8_t shown_can_wake = -1;
 
 /* Sprite animation playback (frames are drawn by ui.c) */
 static AnimId   cur_anim = ANIM_IDLE;
@@ -57,6 +64,12 @@ static void on_state_enter(FsmState state)
 {
   Debug_Printf("STATE -> %s\r\n", fsm_state_name(state));
 
+  /* Leaving sleep: stop the purr (a wake-up meow, if any, keeps playing) */
+  if (prev_state == FSM_SLEEPING && state != FSM_SLEEPING)
+  {
+    Sound_StopLoop();
+  }
+
   switch (state)
   {
     case FSM_IDLE:
@@ -64,6 +77,7 @@ static void on_state_enter(FsmState state)
       if (prev_state == FSM_DEAD || prev_state == FSM_RAN_AWAY)
       {
         UI_DrawMainScreen();
+        Sound_Play(CLIP_MEOW);   /* hello from the new pet */
       }
       UI_DrawHint();
       break;
@@ -73,15 +87,31 @@ static void on_state_enter(FsmState state)
       break;
 
     case FSM_ACTION_PROMPT:
-      UI_DrawPrompt(fsm_get_pending_action());
+      if (fsm_get_pending_action() == PET_ACTION_FEED)
+      {
+        shown_portion = PORTION_COUNT;   /* feed prompt is drawn by feed_prompt_update() */
+      }
+      else
+      {
+        UI_DrawPrompt(fsm_get_pending_action());
+      }
       break;
 
     case FSM_ACTION_ANIM:
+      if (fsm_get_pending_action() == PET_ACTION_FEED)
+      {
+        /* lock in the portion chosen with the knob; Mike's FSM applies it when the animation ends */
+        Portion p = Knob_Portion();
+        pet_set_feed_amount(Knob_FoodAmount(p));
+        Debug_Printf("  feed: %s portion (+%u food), ADC=%u\r\n",
+                     Knob_PortionName(p), Knob_FoodAmount(p), Knob_Raw());
+      }
       UI_DrawStatus("...", NULL);
       break;
 
     case FSM_SLEEPING:
-      UI_DrawStatus("ZZZ  SLEEPING", "BACK: WAKE UP");
+      shown_can_wake = -1;
+      Sound_PlayLoop(CLIP_PURR);  /* purr until the pet wakes up */
       break;
 
     case FSM_DEAD:
@@ -115,11 +145,22 @@ static void start_animation(AnimId anim, bool loop)
   anim_finished = false;
 }
 
-/* Unfinished hooks are NULL for now - Mike's code checks for NULL */
+/* Mike's FSM asks for a sound: pick the matching cat clip */
+static void play_sound(SoundId sound)
+{
+  switch (sound)
+  {
+    case SOUND_HAPPY: Sound_Play(CLIP_HAPPY);  break;   /* action done, woke up rested     */
+    case SOUND_SAD:   Sound_Play(CLIP_HUNGRY); break;   /* low-stat warning, overfed, etc. */
+    case SOUND_DEAD:  Sound_Play(CLIP_DEAD);   break;   /* pet died                        */
+    default:                                   break;
+  }
+}
+
 static const FsmHooks hooks = {
   .on_state_enter  = on_state_enter,
   .start_animation = start_animation,
-  .play_sound      = NULL,
+  .play_sound      = play_sound,
   .on_menu_changed = on_menu_changed,
 };
 
@@ -132,7 +173,10 @@ void App_Init(uint32_t now_ms)
   UI_Init();
   Input_Init();
   UI_DrawMainScreen();
+  Sound_Init();
+  Knob_Init();
   fsm_init(&hooks, now_ms);   /* Mike's FSM: resets the pet, then it enters IDLE */
+  Sound_Play(CLIP_MEOW);      /* power-up meow */
 }
 
 /* Print stats over serial whenever one changes, and keep the on-screen meters current */
@@ -156,24 +200,24 @@ static void stats_update(void)
   }
 }
 
-/* Blue LED blinks while alive, red LED on when dead or ran away */
-static void leds_update(uint32_t now_ms)
+/* Feed prompt: show the knob's portion and raw ADC value, live.
+ * Redraws when the portion changes, or the raw value moves a lot (max 3x/s). */
+static void feed_prompt_update(uint32_t now_ms)
 {
-  FsmState s = fsm_get_state();
-  if (s == FSM_DEAD || s == FSM_RAN_AWAY)
-  {
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-  }
-  else
-  {
-    HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-    if ((now_ms - heartbeat_ms) >= HEARTBEAT_MS)
-    {
-      heartbeat_ms = now_ms;
-      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    }
-  }
+  char line[32];
+  Portion  p   = Knob_Portion();
+  uint16_t raw = Knob_Raw();
+  uint16_t diff = (raw > shown_raw) ? (uint16_t)(raw - shown_raw) : (uint16_t)(shown_raw - raw);
+
+  if (fsm_get_state() != FSM_ACTION_PROMPT || fsm_get_pending_action() != PET_ACTION_FEED) { return; }
+  if (p == shown_portion && (diff < 40u || (now_ms - portion_draw_ms) < 300u)) { return; }
+
+  shown_portion   = p;
+  shown_raw       = raw;
+  portion_draw_ms = now_ms;
+  snprintf(line, sizeof(line), "PORTION: %s  ADC %u", Knob_PortionName(p), raw);
+  UI_DrawStatus(line, "TURN KNOB, CENTER: FEED");
+  Debug_Printf("  knob: ADC=%u -> %s (+%u food)\r\n", raw, Knob_PortionName(p), Knob_FoodAmount(p));
 }
 
 /* Draws the next frame of the current animation when its frame time is up.
@@ -216,6 +260,21 @@ static void anim_tick(uint32_t now_ms)
   anim_frame++;   /* uint8_t wraps at 256, a multiple of every looping cycle */
 }
 
+/* Sleep screen text: "TOO TIRED" after a forced sleep, switching to
+ * "BACK: WAKE UP" once energy has recovered enough. Redraws only on a change. */
+static void sleep_hint_update(void)
+{
+  if (fsm_get_state() != FSM_SLEEPING) { return; }
+
+  int8_t can_wake = fsm_sleep_can_wake() ? 1 : 0;
+  if (can_wake == shown_can_wake) { return; }
+  shown_can_wake = can_wake;
+
+  if (can_wake) { UI_DrawStatus("ZZZ  SLEEPING",  "BACK: WAKE UP"); }
+  else          { UI_DrawStatus("ZZZ  EXHAUSTED", "TOO TIRED TO WAKE"); }
+}
+
+
 /* ---- Action trigger: the ONE place that decides what starts an action ----
  * No sensors yet, so pressing the joystick CENTER (EVT_SELECT) while the
  * prompt is showing posts the trigger for the action chosen in the menu.
@@ -236,6 +295,8 @@ static FsmEvent map_action_trigger(FsmEvent ev)
 
 void App_Update(uint32_t now_ms)
 {
+  Knob_Update(now_ms);                /* sample the food-portion knob (ADC) */
+
   FsmEvent ev = Input_Poll(now_ms);   /* joystick or keyboard */
   if (ev != EVT_NONE)
   {
@@ -244,6 +305,11 @@ void App_Update(uint32_t now_ms)
 
   fsm_update(now_ms);                 /* Mike's FSM handles it */
   anim_tick(now_ms);                  /* next sprite frame, if it's time (may post EVT_ANIM_DONE) */
+  feed_prompt_update(now_ms);         /* live portion on the feed prompt */
+  sleep_hint_update();
   stats_update();
-  leds_update(now_ms);
+  StatusLed_Update(now_ms, fsm_get_state(),
+                   pet_get_stat(PET_STAT_HUNGER),
+                   pet_get_stat(PET_STAT_HAPPINESS),
+                   pet_get_stat(PET_STAT_ENERGY));
 }

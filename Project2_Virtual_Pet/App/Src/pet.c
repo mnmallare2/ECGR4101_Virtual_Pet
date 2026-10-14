@@ -24,7 +24,7 @@ typedef struct {
 
 static const PetActionEffect k_action_effects[PET_ACTION_COUNT] = {
     /*                        hunger  happiness  energy                     */
-    [PET_ACTION_FEED]  = {     +30,      +5,       0  },  /* PLACEHOLDER   */
+    [PET_ACTION_FEED]  = {     0,      +5,       0  },  /* PLACEHOLDER   */
     [PET_ACTION_PLAY]  = {      -5,     +25,     -15  },  /* PLACEHOLDER   */
     [PET_ACTION_SLEEP] = {       0,       0,       0  },  /* PLACEHOLDER: applied when the pet falls asleep;
                                                            * energy recovery itself is time-based (pet.h) */
@@ -41,6 +41,10 @@ typedef struct {
 } Pet;
 
 static Pet s_pet;
+
+/* Food added by the next feed. Starts at the table value; the food-portion
+ * knob changes it with pet_set_feed_amount() before each feed.             */
+static int16_t s_feed_amount = 30;
 
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                   */
@@ -148,8 +152,7 @@ void pet_reset(void)
 /**
  * pet_tick
  * Advances the pet's clock by elapsed_ms and applies any change that is due.
- * TODO (team): decide if energy == 0 should do something (e.g. force sleep,
- *              block Play). Right now it is only clamped at 0.
+ * Energy at 0 force sleeps
  */
 void pet_tick(uint32_t elapsed_ms)
 {
@@ -225,14 +228,24 @@ uint8_t pet_apply_action(PetAction action)
     }
 
     const PetActionEffect *e = &k_action_effects[action];
+    int16_t food = (action == PET_ACTION_FEED) ? s_feed_amount : e->hunger;
     s_pet.stat[PET_STAT_HUNGER] =
-        clamp_add(s_pet.stat[PET_STAT_HUNGER], e->hunger);
+        clamp_add(s_pet.stat[PET_STAT_HUNGER], food);
     s_pet.stat[PET_STAT_HAPPINESS] =
         clamp_add(s_pet.stat[PET_STAT_HAPPINESS], e->happiness);
     s_pet.stat[PET_STAT_ENERGY] =
         clamp_add(s_pet.stat[PET_STAT_ENERGY], e->energy);
 
     return result;
+}
+
+/**
+ * pet_set_feed_amount
+ * Sets how much food the next feed adds (clamped to 0..100).
+ */
+void pet_set_feed_amount(uint8_t amount)
+{
+    s_feed_amount = (amount > PET_STAT_MAX) ? (int16_t)PET_STAT_MAX : (int16_t)amount;
 }
 
 /**
