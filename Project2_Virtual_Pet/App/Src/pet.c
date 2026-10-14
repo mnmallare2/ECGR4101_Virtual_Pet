@@ -42,6 +42,10 @@ typedef struct {
 
 static Pet s_pet;
 
+/* Food added by the next feed. Starts at the table value; the food-portion
+ * knob changes it with pet_set_feed_amount() before each feed.             */
+static int16_t s_feed_amount = 30;
+
 /* ------------------------------------------------------------------------ */
 /* Helpers                                                                   */
 /* ------------------------------------------------------------------------ */
@@ -225,14 +229,24 @@ uint8_t pet_apply_action(PetAction action)
     }
 
     const PetActionEffect *e = &k_action_effects[action];
+    int16_t food = (action == PET_ACTION_FEED) ? s_feed_amount : e->hunger;
     s_pet.stat[PET_STAT_HUNGER] =
-        clamp_add(s_pet.stat[PET_STAT_HUNGER], e->hunger);
+        clamp_add(s_pet.stat[PET_STAT_HUNGER], food);
     s_pet.stat[PET_STAT_HAPPINESS] =
         clamp_add(s_pet.stat[PET_STAT_HAPPINESS], e->happiness);
     s_pet.stat[PET_STAT_ENERGY] =
         clamp_add(s_pet.stat[PET_STAT_ENERGY], e->energy);
 
     return result;
+}
+
+/**
+ * pet_set_feed_amount
+ * Sets how much food the next feed adds (clamped to 0..100).
+ */
+void pet_set_feed_amount(uint8_t amount)
+{
+    s_feed_amount = (amount > PET_STAT_MAX) ? (int16_t)PET_STAT_MAX : (int16_t)amount;
 }
 
 /**
@@ -309,4 +323,4 @@ bool pet_is_starved(void)
 bool pet_has_run_away(void)
 {
     return s_pet.stat[PET_STAT_HAPPINESS] == 0u;
-}
+}
