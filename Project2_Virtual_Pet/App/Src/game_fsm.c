@@ -23,6 +23,9 @@ static uint8_t   s_menu_cursor;
 static PetAction s_pending_action;
 static bool      s_prev_hunger_warn;
 static bool      s_prev_happy_warn;
+
+//pet collapse from exhaustion
+static bool s_forced_sleep;
  
 /* Ring buffer: ISR writes head, main loop reads tail. */
 static volatile FsmEvent s_queue[FSM_EVENT_QUEUE_SIZE];
@@ -104,6 +107,7 @@ static void enter_state(FsmState next)
     }
     if (prev == FSM_SLEEPING) {
         pet_set_sleeping(false);
+        s_forced_sleep = false;
     }
  
     s_state          = next;
@@ -167,6 +171,12 @@ static void check_consequences(void)
     }
     if (pet_has_run_away()) {
         enter_state(FSM_RAN_AWAY);
+        return;
+    }
+    if (s_state != FSM_SLEEPING && pet_get_stat(PET_STAT_ENERGY)== PET_STAT_MIN) {
+        hook_sound(SOUND_SAD);
+        s_forced_sleep = true;
+        enter_state(FSM_SLEEPING);
         return;
     }
  
@@ -291,6 +301,10 @@ static void handle_action_anim(FsmEvent evt)
 static void handle_sleeping(FsmEvent evt)
 {
     if (evt == EVT_WAKE || evt == EVT_BACK) {
+        if(s_forced_sleep && pet_get_stat(PET_STAT_ENERGY) < FSM_FORCED_WAKE_MIN_ENERGY){
+            hook_sound(SOUND_SAD);
+            return;
+        }
         enter_state(FSM_IDLE);
     }
 }
@@ -364,6 +378,7 @@ void fsm_init(const FsmHooks *hooks, uint32_t now_ms)
     s_state            = FSM_IDLE;
     pet_init();
     enter_state(FSM_IDLE);
+    s_forced_sleep = false;
 }
  
 /**

@@ -24,7 +24,7 @@ typedef struct {
 
 static const PetActionEffect k_action_effects[PET_ACTION_COUNT] = {
     /*                        hunger  happiness  energy                     */
-    [PET_ACTION_FEED]  = {     +30,      +5,       0  },  /* PLACEHOLDER   */
+    [PET_ACTION_FEED]  = {     0,      +5,       0  },  /* PLACEHOLDER   */
     [PET_ACTION_PLAY]  = {      -5,     +25,     -15  },  /* PLACEHOLDER   */
     [PET_ACTION_SLEEP] = {       0,       0,       0  },  /* PLACEHOLDER: applied when the pet falls asleep;
                                                            * energy recovery itself is time-based (pet.h) */
@@ -152,8 +152,7 @@ void pet_reset(void)
 /**
  * pet_tick
  * Advances the pet's clock by elapsed_ms and applies any change that is due.
- * TODO (team): decide if energy == 0 should do something (e.g. force sleep,
- *              block Play). Right now it is only clamped at 0.
+ * Energy at 0 force sleeps
  */
 void pet_tick(uint32_t elapsed_ms)
 {
@@ -323,4 +322,4 @@ bool pet_is_starved(void)
 bool pet_has_run_away(void)
 {
     return s_pet.stat[PET_STAT_HAPPINESS] == 0u;
-}
+}

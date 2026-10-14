@@ -37,6 +37,9 @@
 #define FSM_PROMPT_TIMEOUT_MS   10000u
 #define FSM_MIN_SLEEP_MS        5000u
 #define FSM_SLEEP_MIN_TIRED     90u
+
+// Forced sleep, the pet refuses to be woken early until energy has recovered
+#define FSM_FORCED_WAKE_MIN_ENERGY 20u
  
 /* Size of the event queue (must be a power of two).                         */
 #define FSM_EVENT_QUEUE_SIZE    16u
