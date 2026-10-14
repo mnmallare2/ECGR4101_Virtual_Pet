@@ -175,6 +175,7 @@ void App_Init(uint32_t now_ms)
   UI_DrawMainScreen();
   Sound_Init();
   Knob_Init();
+  StatusLed_Init();
   fsm_init(&hooks, now_ms);   /* Mike's FSM: resets the pet, then it enters IDLE */
   Sound_Play(CLIP_MEOW);      /* power-up meow */
 }

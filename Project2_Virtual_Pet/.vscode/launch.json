@@ -1,0 +1,71 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+                {
+            "type": "stlinkgdbtarget",
+            "request": "launch",
+            "name": "STM32Cube: STLink GDB Server",
+            "origin": "snippet",
+            "cwd": "${workspaceFolder}",
+            "preBuild": "${command:st-stm32-ide-debug-launch.build}",
+            "runEntry": "main",
+            "imagesAndSymbols": [
+                {
+                    "imageFileName": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}"
+                }
+            ]
+        },
+        
+        {
+            "type": "stgdbtarget",
+            "request": "launch",
+            "name": "STM32Cube: Launch Generic GDB Server",
+            "origin": "snippet",
+            "cwd": "${workspaceFolder}",
+            "preBuild": "${command:st-stm32-ide-debug-launch.build}",
+            "program": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}",
+            "gdb": "${command:st-stm32-ide-debug-launch.get-gdb-executable}",
+            "deviceName": "${command:st-stm32-ide-debug-launch.get-device-name}",
+            "deviceCore": "${command:st-stm32-ide-debug-launch.get-core-name}",
+            "deviceTrustzone": "${command:st-stm32-ide-debug-launch.get-trustzone-status}",
+            "serverExe": "",
+            "serverParameters": [],
+            "serverHost": "localhost",
+            "serverPort": "",
+            "serverCwd": "",
+            "runEntry": "main",
+            "imagesAndSymbols": [
+                {
+                    "imageFileName": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}",
+                    "imageOffset": "",
+                    "symbolFileName": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}",
+                    "symbolOffset": ""
+                }
+            ]
+        },
+        {
+            "type": "stgdbtarget",
+            "request": "attach",
+            "name": "STM32Cube: Launch GDB Client",
+            "origin": "snippet",
+            "cwd": "${workspaceFolder}",
+            "preBuild": "${command:st-stm32-ide-debug-launch.build}",
+            "program": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}",
+            "gdb": "${command:st-stm32-ide-debug-launch.get-gdb-executable}",
+            "serverHost": "localhost",
+            "serverPort": "${command:st-stm32-ide-debug-launch.get-server-port}",
+            "runEntry": "main",
+            "imagesAndSymbols": [
+                {
+                    "imageFileName": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}",
+                    "imageOffset": "",
+                    "symbolFileName": "${command:st-stm32-ide-debug-launch.get-projects-binary-from-context1}",
+                    "symbolOffset": ""
+                }
+            ]
+        }
+    ]
+}
