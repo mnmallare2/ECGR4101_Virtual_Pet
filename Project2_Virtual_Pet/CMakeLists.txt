@@ -19,7 +19,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Set the project name
-set(CMAKE_PROJECT_NAME Project2_Virtual_Pet)
+set(CMAKE_PROJECT_NAME Lab1_NUCLEO_L496)
 
 # Enable compile command to ease indexing with e.g. clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
@@ -45,11 +45,19 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    App/Src/app.c               # glue: connects Mike's FSM to input/UI
+    App/Src/game_fsm.c          # using Mike's logic file change: app_fsm.c -> game_fsm.c
+    App/Src/debug_uart.c
+    App/Src/input.c
+    App/Src/pet.c
+    App/Src/ui.c
+    App/Src/sprites.c           # cat sprite frames (RGB565), Grecia
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
+    App/Inc
 )
 
 # Add project symbols (macros)
