@@ -301,7 +301,7 @@ static void handle_action_anim(FsmEvent evt)
 static void handle_sleeping(FsmEvent evt)
 {
     if (evt == EVT_WAKE || evt == EVT_BACK) {
-        if(s_forced_sleep && pet_get_stat(PET_STAT_ENERGY) < FSM_FORCED_WAKE_MIN_ENERGY){
+        if(!fsm_sleep_can_wake()){
             hook_sound(SOUND_SAD);
             return;
         }
@@ -445,6 +445,16 @@ PetAction fsm_get_pending_action(void)
     return s_pending_action;
 }
  
+// True if wake/back would wake the pet right now, false when not sleeping
+bool fsm_sleep_can_wake(void)
+{
+    if (s_state != FSM_SLEEPING) {
+        return false;
+    }
+    return !(s_forced_sleep &&
+             pet_get_stat(PET_STAT_ENERGY) < FSM_FORCED_WAKE_MIN_ENERGY);
+}
+
 /**
  * fsm_state_name
  * Returns a short text name for a state (debug printing).

@@ -154,6 +154,7 @@ uint8_t fsm_get_menu_cursor(void);
  */
 PetAction fsm_get_pending_action(void);
  
+bool fsm_sleep_can_wake(void);
 /**
  * fsm_state_name
  * Returns a short text name for a state, for debug printing over UART.

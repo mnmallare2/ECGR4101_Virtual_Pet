@@ -25,6 +25,7 @@ static FsmState prev_state = FSM_IDLE;  /* to know if IDLE needs a full redraw *
 static Portion  shown_portion = PORTION_COUNT;   /* PORTION_COUNT = "nothing shown" */
 static uint16_t shown_raw;
 static uint32_t portion_draw_ms;
+static int8_t shown_can_wake = -1;
 
 /* Sprite animation playback (frames are drawn by ui.c) */
 static AnimId   cur_anim = ANIM_IDLE;
@@ -109,7 +110,7 @@ static void on_state_enter(FsmState state)
       break;
 
     case FSM_SLEEPING:
-      UI_DrawStatus("ZZZ  SLEEPING", "BACK: WAKE UP");
+      shown_can_wake = -1;
       Sound_PlayLoop(CLIP_PURR);  /* purr until the pet wakes up */
       break;
 
@@ -259,6 +260,21 @@ static void anim_tick(uint32_t now_ms)
   anim_frame++;   /* uint8_t wraps at 256, a multiple of every looping cycle */
 }
 
+/* Sleep screen text: "TOO TIRED" after a forced sleep, switching to
+ * "BACK: WAKE UP" once energy has recovered enough. Redraws only on a change. */
+static void sleep_hint_update(void)
+{
+  if (fsm_get_state() != FSM_SLEEPING) { return; }
+
+  int8_t can_wake = fsm_sleep_can_wake() ? 1 : 0;
+  if (can_wake == shown_can_wake) { return; }
+  shown_can_wake = can_wake;
+
+  if (can_wake) { UI_DrawStatus("ZZZ  SLEEPING",  "BACK: WAKE UP"); }
+  else          { UI_DrawStatus("ZZZ  EXHAUSTED", "TOO TIRED TO WAKE"); }
+}
+
+
 /* ---- Action trigger: the ONE place that decides what starts an action ----
  * No sensors yet, so pressing the joystick CENTER (EVT_SELECT) while the
  * prompt is showing posts the trigger for the action chosen in the menu.
@@ -290,6 +306,7 @@ void App_Update(uint32_t now_ms)
   fsm_update(now_ms);                 /* Mike's FSM handles it */
   anim_tick(now_ms);                  /* next sprite frame, if it's time (may post EVT_ANIM_DONE) */
   feed_prompt_update(now_ms);         /* live portion on the feed prompt */
+  sleep_hint_update();
   stats_update();
   StatusLed_Update(now_ms, fsm_get_state(),
                    pet_get_stat(PET_STAT_HUNGER),
