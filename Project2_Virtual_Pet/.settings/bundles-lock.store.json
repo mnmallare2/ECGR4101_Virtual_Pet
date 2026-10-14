@@ -122,6 +122,53 @@
       ]
     },
     {
+<<<<<<< HEAD
+=======
+      "name": "programmer",
+      "version": "2.23.0",
+      "platform": "aarch64-darwin",
+      "selected_by": [
+        {
+          "name": "programmer",
+          "version": "2.23.0"
+        }
+      ]
+    },
+    {
+      "name": "programmer",
+      "version": "2.23.0",
+      "platform": "x86_64-darwin",
+      "selected_by": [
+        {
+          "name": "programmer",
+          "version": "2.23.0"
+        }
+      ]
+    },
+    {
+      "name": "programmer",
+      "version": "2.23.0",
+      "platform": "x86_64-linux",
+      "selected_by": [
+        {
+          "name": "programmer",
+          "version": "2.23.0"
+        }
+      ]
+    },
+    {
+      "name": "programmer",
+      "version": "2.23.0",
+      "platform": "x86_64-windows",
+      "selected_by": [
+        {
+          "name": "programmer",
+          "version": "2.23.0"
+        }
+      ]
+    },
+    {
+>>>>>>> b876b54cfdd67d6c32c01341033d6aca7925e265
       "name": "st-arm-clangd",
       "version": "21.1.0+st.2",
       "platform": "darwin",
@@ -153,6 +200,53 @@
           "version": "21.1.0+st.2"
         }
       ]
+<<<<<<< HEAD
+=======
+    },
+    {
+      "name": "stlink-gdbserver",
+      "version": "7.14.0+st.2",
+      "platform": "aarch64-darwin",
+      "selected_by": [
+        {
+          "name": "stlink-gdbserver",
+          "version": "7.14.0+st.2"
+        }
+      ]
+    },
+    {
+      "name": "stlink-gdbserver",
+      "version": "7.14.0+st.2",
+      "platform": "x86_64-darwin",
+      "selected_by": [
+        {
+          "name": "stlink-gdbserver",
+          "version": "7.14.0+st.2"
+        }
+      ]
+    },
+    {
+      "name": "stlink-gdbserver",
+      "version": "7.14.0+st.2",
+      "platform": "x86_64-linux",
+      "selected_by": [
+        {
+          "name": "stlink-gdbserver",
+          "version": "7.14.0+st.2"
+        }
+      ]
+    },
+    {
+      "name": "stlink-gdbserver",
+      "version": "7.14.0+st.2",
+      "platform": "x86_64-windows",
+      "selected_by": [
+        {
+          "name": "stlink-gdbserver",
+          "version": "7.14.0+st.2"
+        }
+      ]
+>>>>>>> b876b54cfdd67d6c32c01341033d6aca7925e265
     }
   ]
 }
