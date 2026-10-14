@@ -31,6 +31,10 @@
 #define PET_X       88U
 #define PET_Y       113U
 
+/* End screens: the death / runaway sprite sits above the text (text starts at y 120) */
+#define END_PET_X   88U
+#define END_PET_Y   40U
+
 /* Pet stage (the only area redrawn by animations) */
 #define STAGE_X     50U
 #define STAGE_Y     90U
@@ -177,6 +181,20 @@ void UI_DrawActionFrame(PetAction a, uint8_t frame)
   }
 }
 
+/* Death: sad, X eyes, fallen over, angel rising - hold the last frame */
+void UI_DrawDeadFrame(uint8_t frame)
+{
+  if (frame >= CAT_DEATH_FRAMES) { frame = CAT_DEATH_FRAMES - 1U; }
+  ILI9341_DrawBitmap(END_PET_X, END_PET_Y, CAT_W, CAT_H, cat_death_anim[frame]);
+}
+
+/* Runaway: crying, suitcase, turns away, leaves - hold the last frame */
+void UI_DrawRanAwayFrame(uint8_t frame)
+{
+  if (frame >= CAT_RUNAWAY_FRAMES) { frame = CAT_RUNAWAY_FRAMES - 1U; }
+  ILI9341_DrawBitmap(END_PET_X, END_PET_Y, CAT_W, CAT_H, cat_runaway_anim[frame]);
+}
+
 void UI_DrawHint(void)
 {
   clear_bar();
@@ -217,15 +235,16 @@ void UI_DrawStatus(const char *line1, const char *line2)
   if (line2 != NULL) { ILI9341_DrawString(10, BAR_Y + 24, line2, ILI9341_COLOR_GRAY, BG, 1); }
 }
 
-/* TODO: change the wording once the team decides which sensor triggers each action */
+/* Joystick CENTER triggers the action for now (see map_action_trigger in app.c).
+ * Change the wording here if a sensor takes over. */
 void UI_DrawPrompt(PetAction a)
 {
   switch (a)
   {
-    case PET_ACTION_FEED:  UI_DrawStatus("FEED: USE THE SENSOR NOW",  "BACK: CANCEL"); break;
-    case PET_ACTION_PLAY:  UI_DrawStatus("PLAY: USE THE SENSOR NOW",  "BACK: CANCEL"); break;
-    case PET_ACTION_SLEEP: UI_DrawStatus("SLEEP: USE THE SENSOR NOW", "BACK: CANCEL"); break;
-    default:               UI_DrawStatus("DO THE ACTION NOW",         "BACK: CANCEL"); break;
+    case PET_ACTION_FEED:  UI_DrawStatus("PRESS CENTER TO FEED",  "BACK: CANCEL"); break;
+    case PET_ACTION_PLAY:  UI_DrawStatus("PRESS CENTER TO PLAY",  "BACK: CANCEL"); break;
+    case PET_ACTION_SLEEP: UI_DrawStatus("PRESS CENTER TO SLEEP", "BACK: CANCEL"); break;
+    default:               UI_DrawStatus("PRESS CENTER",          "BACK: CANCEL"); break;
   }
 }
 

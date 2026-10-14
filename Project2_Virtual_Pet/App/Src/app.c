@@ -11,23 +11,22 @@
 #include "input.h"
 #include "pet.h"
 #include "main.h"        /* LD2 (blue) / LD3 (red) LED pins */
+#include "sprites.h"     /* CAT_<NAME>_FRAMES counts */
 #include <stdbool.h>
 
-#define ACTION_ANIM_MS  2500u  /* how long feed/play "plays" before it counts as done */
 #define HEARTBEAT_MS    500u   /* blue LED blink speed while the pet is alive        */
 
-static uint32_t now_ms_cache;    /* time of the current App_Update (hooks get no time) */
-static bool     anim_running;    /* a one-shot action animation is in progress */
-static uint32_t anim_start_ms;
 static uint32_t heartbeat_ms;
 static uint8_t  shown_food = 0xFF, shown_happy = 0xFF, shown_energy = 0xFF;
 static FsmState prev_state = FSM_IDLE;  /* to know if IDLE needs a full redraw */
 
 /* Sprite animation playback (frames are drawn by ui.c) */
 static AnimId   cur_anim = ANIM_IDLE;
-static uint8_t  anim_frame;
-static uint32_t anim_frame_ms;
+static uint8_t  anim_frame;              /* next frame to draw                         */
+static uint32_t anim_frame_ms;           /* when the current frame was drawn           */
 static bool     anim_draw_now;           /* draw frame 0 right away on a new animation */
+static bool     anim_one_shot;           /* FSM asked loop=false: post EVT_ANIM_DONE   */
+static bool     anim_finished;           /* last frame reached: hold it, draw no more  */
 
 /* How long each frame stays on screen, per animation (ms) */
 static const uint16_t k_frame_ms[ANIM_COUNT] = {
@@ -37,6 +36,19 @@ static const uint16_t k_frame_ms[ANIM_COUNT] = {
   [ANIM_SLEEP]    = 500u,
   [ANIM_DEAD]     = 450u,
   [ANIM_RAN_AWAY] = 400u,
+};
+
+/* How many frames to show before the animation ends (0 = forever).
+ * One-shot animations then post EVT_ANIM_DONE; the end-screen ones just hold
+ * their last frame. Feed/play last about 2.5 s: feed holds the hearts frame,
+ * play loops its 4 frames (ui.c clamps / wraps the frame number). */
+static const uint8_t k_anim_len[ANIM_COUNT] = {
+  [ANIM_IDLE]     = 0u,
+  [ANIM_FEED]     = 7u,                  /* 7 x 350 ms = 2.45 s */
+  [ANIM_PLAY]     = 11u,                 /* 11 x 220 ms = 2.42 s */
+  [ANIM_SLEEP]    = 0u,
+  [ANIM_DEAD]     = CAT_DEATH_FRAMES,
+  [ANIM_RAN_AWAY] = CAT_RUNAWAY_FRAMES,
 };
 
 /* ---- new hooks: Mike's FSM calls these when something happens ---- */
@@ -92,17 +104,15 @@ static void on_menu_changed(uint8_t cursor)
 }
 
 /* Mike's FSM asks for an animation. Remember which one so anim_tick() can
- * draw its frames, and time one-shot (non-looping) ones so EVT_ANIM_DONE gets sent. */
+ * draw its frames; one-shot (loop=false) ones post EVT_ANIM_DONE when they end. */
 static void start_animation(AnimId anim, bool loop)
 {
+  if ((unsigned)anim >= ANIM_COUNT) { return; }
   cur_anim      = anim;
   anim_frame    = 0u;
   anim_draw_now = true;
-  if (!loop)
-  {
-    anim_running  = true;
-    anim_start_ms = now_ms_cache;
-  }
+  anim_one_shot = !loop;
+  anim_finished = false;
 }
 
 /* Unfinished hooks are NULL for now - Mike's code checks for NULL */
@@ -122,7 +132,6 @@ void App_Init(uint32_t now_ms)
   UI_Init();
   Input_Init();
   UI_DrawMainScreen();
-  now_ms_cache = now_ms;
   fsm_init(&hooks, now_ms);   /* Mike's FSM: resets the pet, then it enters IDLE */
 }
 
@@ -171,45 +180,70 @@ static void leds_update(uint32_t now_ms)
  * Only one 64x64 frame is sent per call, so input stays responsive. */
 static void anim_tick(uint32_t now_ms)
 {
-  FsmState s = fsm_get_state();
+  FsmState s   = fsm_get_state();
+  bool     end = (s == FSM_DEAD || s == FSM_RAN_AWAY);
 
-  /* the end screens are full-screen text drawn by UI_DrawDeadScreen / UI_DrawRanAwayScreen */
-  if (s == FSM_DEAD || s == FSM_RAN_AWAY) { return; }
+  /* End screens only show their own sprite (above the text), and the
+   * end-screen sprites never land on the main screen. */
+  if (end != (cur_anim == ANIM_DEAD || cur_anim == ANIM_RAN_AWAY)) { return; }
 
+  if (anim_finished) { return; }
   if (!anim_draw_now && (now_ms - anim_frame_ms) < k_frame_ms[cur_anim]) { return; }
   anim_draw_now = false;
   anim_frame_ms = now_ms;
 
+  /* Last frame has been on screen for its full time: the animation is over */
+  if (k_anim_len[cur_anim] != 0u && anim_frame >= k_anim_len[cur_anim])
+  {
+    anim_finished = true;
+    if (anim_one_shot)
+    {
+      fsm_post_event(EVT_ANIM_DONE);   /* FSM leaves ACTION_ANIM and applies the action */
+    }
+    return;
+  }
+
   switch (cur_anim)
   {
-    case ANIM_IDLE:  UI_DrawIdleFrame(anim_frame);                     break;
-    case ANIM_FEED:  UI_DrawActionFrame(PET_ACTION_FEED,  anim_frame); break;
-    case ANIM_PLAY:  UI_DrawActionFrame(PET_ACTION_PLAY,  anim_frame); break;
-    case ANIM_SLEEP: UI_DrawActionFrame(PET_ACTION_SLEEP, anim_frame); break;
-    default:                                                           break;
+    case ANIM_IDLE:     UI_DrawIdleFrame(anim_frame);                     break;
+    case ANIM_FEED:     UI_DrawActionFrame(PET_ACTION_FEED,  anim_frame); break;
+    case ANIM_PLAY:     UI_DrawActionFrame(PET_ACTION_PLAY,  anim_frame); break;
+    case ANIM_SLEEP:    UI_DrawActionFrame(PET_ACTION_SLEEP, anim_frame); break;
+    case ANIM_DEAD:     UI_DrawDeadFrame(anim_frame);                     break;
+    case ANIM_RAN_AWAY: UI_DrawRanAwayFrame(anim_frame);                  break;
+    default:                                                              break;
   }
-  anim_frame++;
+  anim_frame++;   /* uint8_t wraps at 256, a multiple of every looping cycle */
+}
+
+/* ---- Action trigger: the ONE place that decides what starts an action ----
+ * No sensors yet, so pressing the joystick CENTER (EVT_SELECT) while the
+ * prompt is showing posts the trigger for the action chosen in the menu.
+ * To use a sensor later, post EVT_TRIGGER_xxx from the sensor code instead
+ * and delete the EVT_SELECT mapping below. */
+static FsmEvent map_action_trigger(FsmEvent ev)
+{
+  if (ev != EVT_SELECT || fsm_get_state() != FSM_ACTION_PROMPT) { return ev; }
+
+  switch (fsm_get_pending_action())
+  {
+    case PET_ACTION_FEED:  return EVT_TRIGGER_FEED;
+    case PET_ACTION_PLAY:  return EVT_TRIGGER_PLAY;
+    case PET_ACTION_SLEEP: return EVT_TRIGGER_SLEEP;
+    default:               return ev;
+  }
 }
 
 void App_Update(uint32_t now_ms)
 {
-  now_ms_cache = now_ms;
-
   FsmEvent ev = Input_Poll(now_ms);   /* joystick or keyboard */
   if (ev != EVT_NONE)
   {
-    fsm_post_event(ev);               /* into Mike's event queue */
-  }
-
-  /* Action "animation" finished -> tell Mike's FSM so it leaves ACTION_ANIM */
-  if (anim_running && (now_ms - anim_start_ms) >= ACTION_ANIM_MS)
-  {
-    anim_running = false;
-    fsm_post_event(EVT_ANIM_DONE);
+    fsm_post_event(map_action_trigger(ev));   /* into Mike's event queue */
   }
 
   fsm_update(now_ms);                 /* Mike's FSM handles it */
-  anim_tick(now_ms);                  /* next sprite frame, if it's time */
+  anim_tick(now_ms);                  /* next sprite frame, if it's time (may post EVT_ANIM_DONE) */
   stats_update();
   leds_update(now_ms);
 }
