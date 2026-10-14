@@ -51,6 +51,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     App/Src/input.c
     App/Src/pet.c
     App/Src/ui.c
+    App/Src/sprites.c           # cat sprite frames (RGB565), Grecia
 )
 
 # Add include paths

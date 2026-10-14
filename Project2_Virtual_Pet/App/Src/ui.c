@@ -8,13 +8,13 @@
  */
 #include "ui.h"
 #include "ili9341.h"
+#include "sprites.h"
 #include <string.h>  
 
 /* Colors */
 #define BG          ILI9341_COLOR_BLACK
 #define TEXT        ILI9341_COLOR_WHITE
 #define BAR_EMPTY   0x2104U              /* dark gray */
-#define PET_BODY    ILI9341_COLOR_GREEN
 
 /* Meters */
 #define METER_X       90U
@@ -26,6 +26,14 @@
 #define HAPPY_Y       48U
 #define ENERGY_Y      66U
 #define METER_COUNT   3U
+
+/* Pet sprite: 64x64, horizontally centered inside the pet stage */
+#define PET_X       88U
+#define PET_Y       113U
+
+/* End screens: the death / runaway sprite sits above the text (text starts at y 120) */
+#define END_PET_X   88U
+#define END_PET_Y   40U
 
 /* Pet stage (the only area redrawn by animations) */
 #define STAGE_X     50U
@@ -98,17 +106,11 @@ static void draw_meter_frame(uint16_t y)
                    (uint16_t)(METER_W + 2U), (uint16_t)(METER_H + 2U), ILI9341_COLOR_GRAY);
 }
 
-/* Placeholder pet: a green block with two eyes, top-left corner at (x, y). */
-static void draw_pet(uint16_t x, uint16_t y)
+/* Draws one 64x64 cat frame. Sprites have a black background, so each
+ * frame fully covers the previous one and the stage never needs clearing. */
+static void draw_cat(const uint16_t *frame)
 {
-  ILI9341_FillRect(x, y, 60, 50, PET_BODY);
-  ILI9341_FillRect((uint16_t)(x + 14), (uint16_t)(y + 14), 8, 8, BG);
-  ILI9341_FillRect((uint16_t)(x + 38), (uint16_t)(y + 14), 8, 8, BG);
-}
-
-static void clear_stage(void)
-{
-  ILI9341_FillRect(STAGE_X, STAGE_Y, STAGE_W, STAGE_H, BG);
+  ILI9341_DrawBitmap(PET_X, PET_Y, CAT_W, CAT_H, frame);
 }
 
 static void clear_bar(void)
@@ -144,45 +146,53 @@ void UI_DrawMeters(uint8_t food, uint8_t happiness, uint8_t energy)
   draw_meter(2, ENERGY_Y, energy,    ILI9341_COLOR_YELLOW);
 }
 
+/* Idle frames: 0 sit, 1 blink + tail swish, 2-3 meow, 4-5 purr.
+ * Mostly sits and blinks; meows and purrs once in a while instead of nonstop.
+ * 32 entries so the uint8_t frame counter wraps around cleanly (256 / 32). */
+static const uint8_t idle_sequence[32] = {
+  0, 1, 0, 1, 0, 1, 0, 1, 2, 3, 2, 3, 0, 1, 0, 1,
+  0, 1, 0, 1, 0, 1, 0, 1, 4, 5, 4, 5, 4, 5, 0, 1
+};
+
 void UI_DrawIdleFrame(uint8_t frame)
 {
-  /* 2-frame "breathing" bob: pet moves up 6 px on odd frames */
-  uint16_t dy = (frame & 1U) ? 0U : 6U;
-  clear_stage();
-  draw_pet(90, (uint16_t)(STAGE_Y + 40 + dy));
+  draw_cat(cat_idle_anim[idle_sequence[frame % 32U]]);
 }
 
 void UI_DrawActionFrame(PetAction a, uint8_t frame)
 {
-  clear_stage();
-
   switch (a)
   {
-    case PET_ACTION_FEED:   /* Cheikh and Grecia's part comes here */
-      draw_pet(70, STAGE_Y + 40);
-      ILI9341_FillRect((uint16_t)(180 - (frame % 4U) * 12U), STAGE_Y + 60, 12, 12, ILI9341_COLOR_ORANGE);
-      ILI9341_DrawString(STAGE_X, STAGE_Y, "YUM", TEXT, BG, 2);
+    case PET_ACTION_FEED:   /* bowls, eat, drink, hearts - then hold on the hearts frame */
+      if (frame >= CAT_FEED_FRAMES) { frame = CAT_FEED_FRAMES - 1U; }
+      draw_cat(cat_feed_anim[frame]);
       break;
 
-    case PET_ACTION_PLAY:   /* This is a temporary placeholder with comments */
-      draw_pet(70, (uint16_t)(STAGE_Y + 40 - ((frame & 1U) ? 20U : 0U)));
-      ILI9341_FillRect(160, (uint16_t)(STAGE_Y + 20 + ((frame & 1U) ? 50U : 0U)), 14, 14, ILI9341_COLOR_MAGENTA);
-      ILI9341_DrawString(STAGE_X, STAGE_Y, "PLAY", TEXT, BG, 2);
+    case PET_ACTION_PLAY:   /* crouch, pounce, paw on yarn, yarn rolls away - loops */
+      draw_cat(cat_play_anim[frame % CAT_PLAY_FRAMES]);
       break;
 
-    case PET_ACTION_SLEEP:    /* and also temporary instructions that could work */
-      draw_pet(90, STAGE_Y + 40);
-      if (frame & 1U)
-      {
-        ILI9341_FillRect(100, STAGE_Y + 22, 10, 10, ILI9341_COLOR_RED);
-        ILI9341_FillRect(130, STAGE_Y + 22, 10, 10, ILI9341_COLOR_RED);
-      }
-      ILI9341_DrawString(STAGE_X, STAGE_Y, "ZZZ", TEXT, BG, 2);
+    case PET_ACTION_SLEEP:  /* lying down, breathing, Z's rising - loops */
+      draw_cat(cat_sleep_anim[frame % CAT_SLEEP_FRAMES]);
       break;
 
     default:
       break;
   }
+}
+
+/* Death: sad, X eyes, fallen over, angel rising - hold the last frame */
+void UI_DrawDeadFrame(uint8_t frame)
+{
+  if (frame >= CAT_DEATH_FRAMES) { frame = CAT_DEATH_FRAMES - 1U; }
+  ILI9341_DrawBitmap(END_PET_X, END_PET_Y, CAT_W, CAT_H, cat_death_anim[frame]);
+}
+
+/* Runaway: crying, suitcase, turns away, leaves - hold the last frame */
+void UI_DrawRanAwayFrame(uint8_t frame)
+{
+  if (frame >= CAT_RUNAWAY_FRAMES) { frame = CAT_RUNAWAY_FRAMES - 1U; }
+  ILI9341_DrawBitmap(END_PET_X, END_PET_Y, CAT_W, CAT_H, cat_runaway_anim[frame]);
 }
 
 void UI_DrawHint(void)
@@ -225,15 +235,16 @@ void UI_DrawStatus(const char *line1, const char *line2)
   if (line2 != NULL) { ILI9341_DrawString(10, BAR_Y + 24, line2, ILI9341_COLOR_GRAY, BG, 1); }
 }
 
-/* TODO: change the wording once the team decides which sensor triggers each action */
+/* Joystick CENTER triggers the action for now (see map_action_trigger in app.c).
+ * Change the wording here if a sensor takes over. */
 void UI_DrawPrompt(PetAction a)
 {
   switch (a)
   {
-    case PET_ACTION_FEED:  UI_DrawStatus("FEED: USE THE SENSOR NOW",  "BACK: CANCEL"); break;
-    case PET_ACTION_PLAY:  UI_DrawStatus("PLAY: USE THE SENSOR NOW",  "BACK: CANCEL"); break;
-    case PET_ACTION_SLEEP: UI_DrawStatus("SLEEP: USE THE SENSOR NOW", "BACK: CANCEL"); break;
-    default:               UI_DrawStatus("DO THE ACTION NOW",         "BACK: CANCEL"); break;
+    case PET_ACTION_FEED:  UI_DrawStatus("PRESS CENTER TO FEED",  "BACK: CANCEL"); break;
+    case PET_ACTION_PLAY:  UI_DrawStatus("PRESS CENTER TO PLAY",  "BACK: CANCEL"); break;
+    case PET_ACTION_SLEEP: UI_DrawStatus("PRESS CENTER TO SLEEP", "BACK: CANCEL"); break;
+    default:               UI_DrawStatus("PRESS CENTER",          "BACK: CANCEL"); break;
   }
 }
 
