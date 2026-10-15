@@ -151,7 +151,7 @@ All project code is in `Project2_Virtual_Pet/App/` (`Src/` and `Inc/`). `Core/Sr
 | **Michael Mallare** | Pet model and game state machine (`pet.c`, `game_fsm.c`), forced sleep at energy 0, external RGB status LEDs |
 | **Eric Volotao** | Joystick and serial input, UART debug console, app glue connecting the FSM to the rest, sleep rules, speaker audio player and sound clips, food-portion knob (ADC), first LED patterns |
 | **Cheikh Thiare** | LCD user interface (meters, menu, prompts, end screens), ILI9341 bitmap drawing, joystick action triggers and animation playback |
-| **Grecia** | Cat sprites and animations (art, frame arrays, rebuild script), animation frame timer, art documentation |
+| **Grecia Villarreal** | Cat sprites and animations (art, frame arrays, rebuild script), animation frame timer, art documentation |
 
 ---
 
