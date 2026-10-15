@@ -49,7 +49,7 @@ None of the added parts (speaker, knob, LEDs) share a pin with the display or jo
 | LEFT | Back / cancel / wake the pet |
 | Hold CENTER 2 s | Restart after the pet dies or runs away |
 
-**How to do an action:** CENTER (open menu) → UP/DOWN to choose → CENTER (confirm) → **CENTER again** to do it. The prompt closes after 10 s if you do nothing.
+**How to do an action:** CENTER (open menu) → UP/DOWN to choose → CENTER (confirm) → **CENTER again** to do it. The prompt closes after 30 s if you do nothing.
 
 **Feeding:** while the feed prompt is open, turn the knob to pick the portion. The screen shows the portion and the live ADC value.
 
