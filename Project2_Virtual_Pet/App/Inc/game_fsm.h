@@ -34,7 +34,7 @@
 /* Tuning                                                                    */
 /* ------------------------------------------------------------------------ */
 /* How long ACTION_PROMPT waits for the sensor before giving up (ms).        */
-#define FSM_PROMPT_TIMEOUT_MS   10000u
+#define FSM_PROMPT_TIMEOUT_MS   30000u
 #define FSM_MIN_SLEEP_MS        5000u
 #define FSM_SLEEP_MIN_TIRED     90u
 
